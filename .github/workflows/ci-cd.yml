@@ -11,6 +11,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Đảm bảo toàn bộ mã nguồn được tải
 
       - name: Setup .NET Core
         uses: actions/setup-dotnet@v3
@@ -28,6 +30,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -51,18 +55,22 @@ jobs:
           chmod +x cloudflared
           mv cloudflared /usr/local/bin/
 
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Debug file structure
+        run: |
+          ls -la
+          ls -la ./k8s
+
       - name: Setup SSH key
         run: |
           mkdir -p /tmp/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/.ssh/id_rsa
           chmod 600 /tmp/.ssh/id_rsa
           ssh-keyscan -H ssh.cuder.xyz >> /tmp/.ssh/known_hosts || true
-
-      - name: Debug SSH key setup
-        run: |
-          ls -la /tmp/.ssh
-          cat /tmp/.ssh/id_rsa || echo "Private key is missing or unreadable"
-          cat /tmp/.ssh/known_hosts || echo "Known hosts file is empty"
 
       - name: Copy deployment.yaml to server
         run: |
