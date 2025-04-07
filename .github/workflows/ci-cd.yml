@@ -56,9 +56,7 @@ jobs:
       - name: Setup SSH key
         run: |
           mkdir -p /tmp/.ssh
-          cat <<EOF > /tmp/.ssh/id_rsa
-          ${{ secrets.SSH_KEY }}
-          EOF
+          printf "%s" "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/.ssh/id_rsa
           chmod 600 /tmp/.ssh/id_rsa
           ssh-keyscan ssh.cuder.xyz >> /tmp/.ssh/known_hosts
 
