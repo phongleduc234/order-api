@@ -45,6 +45,7 @@ jobs:
           docker push ${{ secrets.DOCKER_USERNAME }}/order-api:latest
 
   deploy:
+    needs: docker
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -82,4 +83,4 @@ jobs:
       - name: Apply Kubernetes deployment
         run: |
           ssh ssh.cuder.xyz "kubectl apply -f /tmp/deployment.yaml && \
-                             kubectl rollout status deployment/order-api --timeout=60s"
+                             kubectl rollout status deployment/order-api -n devops --timeout=60s"
