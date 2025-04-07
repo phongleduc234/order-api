@@ -55,13 +55,15 @@ jobs:
 
     - name: Setup SSH key
       run: |
-        echo "Home directory: $HOME"
-        ls -al $HOME
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan ssh.cuder.xyz >> ~/.ssh/known_hosts
-        ls -al ~/.ssh
+        # Tạo thư mục .ssh trong thư mục tạm /tmp
+        mkdir -p /tmp/.ssh
+        echo "${{ secrets.SSH_KEY }}" > /tmp/.ssh/id_rsa
+        chmod 600 /tmp/.ssh/id_rsa
+        ssh-keyscan ssh.cuder.xyz >> /tmp/.ssh/known_hosts
+
+        # Thiết lập SSH agent để sử dụng key
+        eval $(ssh-agent -s)
+        ssh-add /tmp/.ssh/id_rsa
 
     - name: Copy deployment file
       run: |
