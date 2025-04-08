@@ -19,12 +19,18 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 app.UseRouting();
 
 app.UseSwagger();
-app.UseSwaggerUI();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Order API V1");
+    c.RoutePrefix = "swagger";
+});
 
 //app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapGet("/", () => Results.Redirect("/swagger"));
 
 app.Run();
