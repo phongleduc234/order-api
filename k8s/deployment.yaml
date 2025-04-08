@@ -18,6 +18,7 @@ spec:
       containers:
       - name: order-api
         image: phongleduc/order-api:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8080
 ---
