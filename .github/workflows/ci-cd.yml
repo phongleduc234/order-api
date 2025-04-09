@@ -36,7 +36,7 @@ jobs:
           docker push ${{ secrets.DOCKER_USERNAME }}/order-api:latest
 
   deploy:
-    needs: docker
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
