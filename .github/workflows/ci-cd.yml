@@ -76,5 +76,5 @@ jobs:
           ssh ssh.cuder.xyz "helm upgrade --install order-api bitnami/aspnet-core \
                              --namespace devops --create-namespace \
                              -f /tmp/values.yaml \
-                             --set image.repository=${{ secrets.DOCKER_REPO }} \
+                             --set image.repository=${{ secrets.DOCKER_USERNAME }}/order-api \
                              --set image.tag=latest"
