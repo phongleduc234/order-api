@@ -1,4 +1,6 @@
-replicaCount: 1
+global:
+  security:
+    allowInsecureImages: true
 
 image:
   registry: docker.io
@@ -6,12 +8,10 @@ image:
   tag: latest
   pullPolicy: Always
 
+replicaCount: 1
+
 imagePullSecrets:
   - name: regcred
-
-aspnetCore:
-  command: ["dotnet"]
-  args: ["OrderApi.dll"]
 
 hostNetwork: true
 dnsPolicy: ClusterFirstWithHostNet
