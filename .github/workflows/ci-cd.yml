@@ -82,5 +82,5 @@ jobs:
 
       - name: Apply Kubernetes deployment
         run: |
-          ssh ssh.cuder.xyz "kubectl delete -f /tmp/deployment.yaml && \
-                             kubectl apply -f /tmp/deployment.yaml"
+          ssh ssh.cuder.xyz "kubectl apply -f /tmp/deployment.yaml && \
+                             kubectl rollout status deployment/order-api -n devops --timeout=60s"

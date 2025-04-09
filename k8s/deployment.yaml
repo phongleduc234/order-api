@@ -15,6 +15,10 @@ spec:
       labels:
         app: order-api
     spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      imagePullSecrets:
+        - name: regcred
       containers:
       - name: order-api
         image: phongleduc/order-api:latest
