@@ -9,6 +9,10 @@ image:
 imagePullSecrets:
   - name: regcred
 
+aspnetCore:
+  command: ["dotnet"]
+  args: ["OrderApi.dll"]
+
 hostNetwork: true
 dnsPolicy: ClusterFirstWithHostNet
 
