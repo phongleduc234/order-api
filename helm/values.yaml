@@ -1,0 +1,74 @@
+replicaCount: 1
+
+image:
+  registry: docker.io
+  repository: phongleduc/order-api
+  tag: latest
+  pullPolicy: Always
+
+imagePullSecrets:
+  - name: regcred
+
+hostNetwork: true
+dnsPolicy: ClusterFirstWithHostNet
+
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: 8080
+  name: order-api-service
+
+containerPorts:
+  http: 8080
+
+envFromSecret:
+  - secretName: order-api-secret
+    keys:
+      - name: ConnectionStrings__DefaultConnection
+        envVar: ConnectionStrings__DefaultConnection
+
+  - secretName: shared-secret
+    keys:
+      - name: RabbitMq__UserName
+        envVar: RabbitMq__UserName
+      - name: RabbitMq__Password
+        envVar: RabbitMq__Password
+
+envFromConfigMap:
+  - configMapName: shared-config
+    keys:
+      - name: RabbitMq__Host
+        envVar: RabbitMq__Host
+      - name: RabbitMq__Port
+        envVar: RabbitMq__Port
+      - name: Logging__LogLevel__Default
+        envVar: Logging__LogLevel__Default
+      - name: Logging__LogLevel__Microsoft.AspNetCore
+        envVar: Logging__LogLevel__Microsoft.AspNetCore
+
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  hostname: order-api.cuder.xyz
+  path: /
+  pathType: Prefix
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  tls: true
+  extraTls:
+    - hosts:
+        - order-api.cuder.xyz
+      secretName: order-api-tls
+
+extraEnvVars:
+  - name: ASPNETCORE_ENVIRONMENT
+    value: "Production"
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi

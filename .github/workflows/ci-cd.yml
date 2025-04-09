@@ -24,15 +24,6 @@ jobs:
           dotnet build
           dotnet test
 
-  docker:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -76,11 +67,14 @@ jobs:
           " > ~/.ssh/config
           chmod 600 ~/.ssh/config
 
-      - name: Copy deployment.yaml to server
+      - name: Copy values.yaml to server
         run: |
-          scp ./k8s/deployment.yaml ssh.cuder.xyz:/tmp/deployment.yaml
+          scp ./helm/values.yaml ssh.cuder.xyz:/tmp/values.yaml
 
       - name: Apply Kubernetes deployment
         run: |
-          ssh ssh.cuder.xyz "kubectl apply -f /tmp/deployment.yaml && \
-                             kubectl rollout status deployment/order-api -n devops --timeout=60s"
+          ssh ssh.cuder.xyz "helm upgrade --install order-api bitnami/aspnet-core \
+                             --namespace devops --create-namespace \
+                             -f /tmp/values.yaml \
+                             --set image.repository=${{ secrets.DOCKER_REPO }} \
+                             --set image.tag=latest"
