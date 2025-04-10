@@ -1,4 +1,5 @@
 ﻿using MassTransit;
+using Microsoft.EntityFrameworkCore;
 using OrderService.Data;
 
 namespace OrderApi.Shared
@@ -7,15 +8,21 @@ namespace OrderApi.Shared
     public class OrderConsumer : IConsumer<OrderCompensated>
     {
         private readonly OrderDbContext _context;
+        private readonly ILogger<OrderConsumer> _logger;
 
-        public OrderConsumer(OrderDbContext context)
+        public OrderConsumer(OrderDbContext context, ILogger<OrderConsumer> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         public async Task Consume(ConsumeContext<OrderCompensated> context)
         {
-            var order = await _context.Orders.FindAsync(context.Message.OrderId);
+            _logger.LogInformation($"Compensating order {context.Message.OrderId}");
+
+            var order = await _context.Orders
+                .FirstOrDefaultAsync(o => o.Id == context.Message.OrderId);
+
             if (order != null)
             {
                 _context.Orders.Remove(order);

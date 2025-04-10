@@ -1,8 +1,10 @@
 using MassTransit;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using OrderApi.Services;
 using OrderApi.Shared;
 using OrderService.Data;
+using System.Net.Http.Headers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +14,13 @@ builder.Services.AddDbContext<OrderDbContext>(options =>
 
 // Register IHttpClientFactory
 builder.Services.AddHttpClient();
+builder.Services.AddHttpClient("PaymentService", client =>
+{
+    client.BaseAddress = new Uri("http://payment-api-service:8081");
+    client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+});
+// Đăng ký Outbox Background Service
+builder.Services.AddHostedService<OutboxPublisherService>();
 
 // Bind RabbitMQ configuration
 var rabbitMqOptions = builder.Configuration.GetSection("RabbitMq").Get<RabbitMqOptions>();
@@ -33,14 +42,15 @@ builder.Services.AddMassTransit(x =>
             h.Password(rabbitMqOptions.Password ?? "123456");
         });
 
-        cfg.ReceiveEndpoint("order-queue", e =>
+        cfg.ReceiveEndpoint("compensate-order", e =>
         {
             e.ConfigureConsumer<OrderConsumer>(context);
             e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-            e.BindDeadLetterQueue("order-queue-dlq", "order-queue-dlx");
+            e.BindDeadLetterQueue("compensate-order-dlq", "compensate-order-dlx");
         });
     });
 });
+
 
 var app = builder.Build();
 
@@ -63,8 +73,8 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
 
+app.MapHealthChecks("/health");
 app.UseRouting();
-//app.UseHttpsRedirection();
 
 app.UseAuthorization();
 

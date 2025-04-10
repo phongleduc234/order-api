@@ -69,12 +69,12 @@ jobs:
 
       - name: Copy values.yaml to server
         run: |
-          scp ./helm/values.yaml ssh.cuder.xyz:/tmp/values.yaml
+          scp ./helm/values.yaml ssh.cuder.xyz:/tmp/order-api-values.yaml
 
       - name: Apply Kubernetes deployment
         run: |
           ssh ssh.cuder.xyz "helm upgrade --install order-api devops-charts/dotnet-core-api \
                              --namespace devops --create-namespace \
-                             -f /tmp/values.yaml \
+                             -f /tmp/order-api-values.yaml \
                              --set image.repository=${{ secrets.DOCKER_USERNAME }}/order-api \
                              --set image.tag=latest"

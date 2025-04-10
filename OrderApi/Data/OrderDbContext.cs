@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using OrderApi.Shared;
 
 namespace OrderService.Data
 {
