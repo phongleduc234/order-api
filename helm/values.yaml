@@ -61,6 +61,14 @@ extraEnvVarsFromSecret:
   - secretName: shared-secret
     name: RabbitMq__Password
     envVar: RabbitMq__Password
+    
+  - secretName: shared-secret
+    name: SmtpMail__UserName
+    envVar: SmtpMail__UserName
+
+  - secretName: shared-secret
+    name: SmtpMail__Password
+    envVar: SmtpMail__Password
 
 # Môi trường từ ConfigMap
 extraEnvVarsFromConfigMap:
@@ -71,6 +79,14 @@ extraEnvVarsFromConfigMap:
   - configMapName: shared-config
     name: RabbitMq__Port
     envVar: RabbitMq__Port
+
+  - configMapName: shared-config
+    name: SmtpMail__Host
+    envVar: SmtpMail__Host
+
+  - configMapName: shared-config
+    name: SmtpMail__Port
+    envVar: SmtpMail__Port
 
   - configMapName: shared-config
     name: Logging__LogLevel__Default

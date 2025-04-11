@@ -1,5 +1,6 @@
 using MassTransit;
 using Microsoft.AspNetCore.Mvc;
+using OrderApi.Extensions;
 using OrderApi.Shared;
 using OrderService.Data;
 using Polly;
@@ -57,7 +58,7 @@ public class OrdersController : ControllerBase
             _context.Orders.Add(order);
             await _context.SaveChangesAsync();
 
-            // Gọi PaymentService để xử lý thanh toán (có retry)
+            // Gọi PaymentService để xử lý thanh toán
             var client = _clientFactory.CreateClient("PaymentService");
             var paymentRequest = new
             {
@@ -66,28 +67,58 @@ public class OrdersController : ControllerBase
                 CorrelationId = Guid.NewGuid()
             };
 
-            // Sử dụng retry policy
             var response = await _retryPolicy.ExecuteAsync(() =>
                 client.PostAsJsonAsync("/api/payments/process", paymentRequest));
 
             if (!response.IsSuccessStatusCode)
             {
-                await transaction.RollbackAsync();
-                await _bus.Publish(new OrderCompensated(Guid.NewGuid(), order.Id));
+                // Đảm bảo transaction được commit trước khi thêm sự kiện bồi hoàn
+                await transaction.CommitAsync();
+
+                // Tạo transaction mới để lưu sự kiện bồi thường
+                using var compensateTransaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    var compensateEvent = new OrderCompensated(Guid.NewGuid(), order.Id);
+                    await _context.SaveEventToOutboxAsync(compensateEvent);
+                    await compensateTransaction.CommitAsync();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error saving compensate event to outbox");
+                    await compensateTransaction.RollbackAsync();
+                }
+
                 return BadRequest("Payment processing failed after retries");
             }
 
-            // Publish sự kiện OrderCreated
-            await _bus.Publish(new OrderCreated(Guid.NewGuid(), order.Id));
-            await transaction.CommitAsync();
+            // Lưu sự kiện OrderCreated vào Outbox
+            var orderCreatedEvent = new OrderCreated(Guid.NewGuid(), order.Id);
+            await _context.SaveEventToOutboxAsync(orderCreatedEvent);
 
+            // Commit transaction
+            await transaction.CommitAsync();
             return Ok(order);
         }
         catch (Exception ex)
         {
-            await transaction.RollbackAsync();
             _logger.LogError(ex, "Error creating order");
-            await _bus.Publish(new OrderCompensated(Guid.NewGuid(), order.Id));
+
+            try
+            {
+                await transaction.RollbackAsync();
+
+                // Lưu sự kiện bồi thường trong transaction mới
+                using var compensateTransaction = await _context.Database.BeginTransactionAsync();
+                var compensateEvent = new OrderCompensated(Guid.NewGuid(), order.Id);
+                await _context.SaveEventToOutboxAsync(compensateEvent);
+                await compensateTransaction.CommitAsync();
+            }
+            catch (Exception innerEx)
+            {
+                _logger.LogError(innerEx, "Failed to save compensate event to outbox");
+            }
+
             return StatusCode(500, "Internal server error");
         }
     }

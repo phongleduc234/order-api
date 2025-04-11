@@ -41,5 +41,7 @@ namespace OrderService.Data
         public string EventData { get; set; }
         public DateTime CreatedAt { get; set; }
         public bool Processed { get; set; }
+        public int RetryCount { get; set; }
+        public DateTime? ProcessedAt { get; set; }
     }
 }
