@@ -2,7 +2,7 @@
 using MassTransit;
 using OrderApi.Services;
 
-namespace OrderApi.Shared
+namespace OrderApi.Consumer
 {
     // OrderApi/Shared/DeadLetterConsumer.cs
     public class DeadLetterConsumer : IConsumer<object>
@@ -21,8 +21,8 @@ namespace OrderApi.Shared
         public async Task Consume(ConsumeContext<object> context)
         {
             // Lấy thông tin lỗi từ header
-            var messageType = context.Headers.Get<string>("MessageType", "Unknown");
-            var exceptionMessage = context.Headers.Get<string>("Exception-Message", "Unknown error");
+            var messageType = context.Headers.Get("MessageType", "Unknown");
+            var exceptionMessage = context.Headers.Get("Exception-Message", "Unknown error");
             var failureCount = context.Headers.Get<int>("FailureCount", 1);
             var messageId = context.MessageId?.ToString() ?? Guid.NewGuid().ToString();
 

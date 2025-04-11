@@ -2,9 +2,11 @@ using MassTransit;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using OrderApi.Consumer;
 using OrderApi.Services;
 using OrderApi.Shared;
 using OrderService.Data;
+using SharedContracts.Models;
 using System.Net.Http.Headers;
 using System.Reflection;
 
@@ -33,9 +35,6 @@ builder.Services.AddHostedService<OutboxPublisherService>();
 builder.Services.AddSingleton<IAlertService, AlertService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddHealthChecks().AddCheck<OutboxHealthCheck>("outbox_health");
-
-// Bind RabbitMQ configuration
-var rabbitMqOptions = builder.Configuration.GetSection("RabbitMq").Get<RabbitMqOptions>();
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -71,32 +70,58 @@ builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<OrderConsumer>();
     x.AddConsumer<DeadLetterConsumer>();
+    // Thêm consumer cho các event từ Saga nếu cần
+    x.AddConsumer<OrderFulfilledConsumer>();
+
     x.UsingRabbitMq((context, cfg) =>
     {
-        cfg.Host(new Uri($"rabbitmq://{rabbitMqOptions.Host}:{rabbitMqOptions.Port}/"), h =>
+        var rabbitConfig = builder.Configuration.GetSection("RabbitMq");
+        var host = rabbitConfig["Host"] ?? "localhost";
+        var port = rabbitConfig.GetValue<int>("Port", 5672);
+        var username = rabbitConfig["UserName"] ?? "guest";
+        var password = rabbitConfig["Password"] ?? "guest";
+
+        cfg.Host(new Uri($"rabbitmq://{host}:{port}"), h =>
         {
-            h.Username(rabbitMqOptions.UserName ?? "admin");
-            h.Password(rabbitMqOptions.Password ?? "123456");
+            h.Username(username);
+            h.Password(password);
         });
 
-        // Cấu hình global error handling
         cfg.UseDelayedRedelivery(r => r.Intervals(
-            TimeSpan.FromMinutes(5),
-            TimeSpan.FromMinutes(15),
-            TimeSpan.FromMinutes(30)
-        ));
+                    TimeSpan.FromMinutes(1),
+                    TimeSpan.FromMinutes(5),
+                    TimeSpan.FromMinutes(15)
+                ));
         cfg.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-        cfg.UseInMemoryOutbox(context);
 
-        // Thêm vào cấu hình RabbitMQ
-        cfg.ReceiveEndpoint("global-dead-letter-queue", e =>
+        cfg.ReceiveEndpoint("order-confirmed", e =>
         {
-            e.ConfigureConsumer<DeadLetterConsumer>(context);
-            e.Bind("order-compensated-dlq");
-            e.Bind("order-created-dlq");
+            e.ConfigureSaga<OrderSagaState>(context);
+            e.UseMessageRetry(r => r.Interval(5, TimeSpan.FromSeconds(1)));
+            e.BindDeadLetterQueue("order-confirmed-dlq", "order-confirmed-dlx", x =>
+            {
+                x.Durable = true;
+            });
         });
-
-        // Cấu hình từng endpoint
+        cfg.ReceiveEndpoint("compensate-order", e =>
+        {
+            e.ConfigureSaga<OrderSagaState>(context);
+            e.UseMessageRetry(r => r.Interval(5, TimeSpan.FromSeconds(1)));
+            e.BindDeadLetterQueue("compensate-order-dlq", "compensate-order-dlx", x =>
+            {
+                x.Durable = true;
+            });
+        });
+        cfg.ReceiveEndpoint("order-created", e =>
+        {
+            e.ConfigureSaga<OrderSagaState>(context);
+            e.UseMessageRetry(r => r.Interval(5, TimeSpan.FromSeconds(1)));
+            e.BindDeadLetterQueue("order-created-dlq", "order-created-dlx", x =>
+            {
+                x.Durable = true;
+            });
+        });
+        // Giữ lại cấu hình cho consumer
         cfg.ReceiveEndpoint("order-compensated", e =>
         {
             e.ConfigureConsumer<OrderConsumer>(context);
@@ -105,16 +130,25 @@ builder.Services.AddMassTransit(x =>
                 dlq => dlq.Durable = true);
         });
 
-        cfg.ReceiveEndpoint("order-created", e =>
+        // Thêm endpoint xử lý OrderConfirmed
+        cfg.ReceiveEndpoint("order-fulfilled", e =>
         {
-            e.ConfigureSaga<OrderSagaState>(context);
-            e.BindDeadLetterQueue("order-created-dlq", "order-created-dlx",
+            e.ConfigureConsumer<OrderFulfilledConsumer>(context);
+            e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+            e.BindDeadLetterQueue("order-fulfilled-dlq", "order-fulfilled-dlx",
                 dlq => dlq.Durable = true);
+        });
+
+        // Endpoint cho DeadLetterConsumer
+        cfg.ReceiveEndpoint("order-dead-letter-queue", e =>
+        {
+            e.ConfigureConsumer<DeadLetterConsumer>(context);
+            // Bind các dead letter queues
+            e.Bind("order-compensated-dlq");
+            e.Bind("order-fulfilled-dlq");
         });
     });
 });
-
-
 
 var app = builder.Build();
 

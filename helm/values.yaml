@@ -26,6 +26,9 @@ service:
 deployment:
   name: order-api-deployment
 
+# Annotations để force redeploy
+podAnnotations: {}
+
 # Tên ingress tùy chỉnh
 ingress:
   enabled: true

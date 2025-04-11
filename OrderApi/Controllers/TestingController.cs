@@ -7,6 +7,7 @@ using OrderApi.Extensions;
 using OrderApi.Services;
 using OrderApi.Shared;
 using OrderService.Data;
+using SharedContracts.Events;
 
 namespace OrderApi.Controllers
 {

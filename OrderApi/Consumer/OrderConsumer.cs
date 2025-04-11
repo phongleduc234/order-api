@@ -1,8 +1,9 @@
 ﻿using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using OrderService.Data;
+using SharedContracts.Events;
 
-namespace OrderApi.Shared
+namespace OrderApi.Consumer
 {
     // OrderConsumer.cs
     public class OrderConsumer : IConsumer<OrderCompensated>
