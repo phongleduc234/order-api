@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.set_tag.outputs.image_tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -24,6 +26,10 @@ jobs:
           dotnet build
           dotnet test
 
+      - name: Set image tag
+        id: set_tag
+        run: echo "image_tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -32,8 +38,8 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/order-api:latest .
-          docker push ${{ secrets.DOCKER_USERNAME }}/order-api:latest
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/order-api:${{ steps.set_tag.outputs.image_tag }} .
+          docker push ${{ secrets.DOCKER_USERNAME }}/order-api:${{ steps.set_tag.outputs.image_tag }}
 
   deploy:
     needs: build
@@ -77,4 +83,5 @@ jobs:
                              --namespace devops --create-namespace \
                              -f /tmp/order-api-values.yaml \
                              --set image.repository=${{ secrets.DOCKER_USERNAME }}/order-api \
-                             --set image.tag=latest"
+                             --set image.tag=${{ needs.build.outputs.image_tag }} \
+                             --set image.pullPolicy=Always"
