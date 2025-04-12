@@ -1,11 +1,9 @@
 // OrderApi/Controllers/TestingController.cs
 using MassTransit;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using OrderApi.Extensions;
 using OrderApi.Services;
-using OrderApi.Shared;
 using OrderService.Data;
 using SharedContracts.Events;
 

@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using MassTransit;
 using OrderService.Data;
 using OrderApi.Extensions;
-using OrderApi.Shared;
 using SharedContracts.Events;
 
 namespace OrderService.Controllers;

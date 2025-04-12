@@ -2,7 +2,7 @@ using MassTransit;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
-using OrderApi.Consumer;
+using OrderApi.Consumers;
 using OrderApi.Services;
 using OrderApi.Shared;
 using OrderService.Data;
@@ -88,55 +88,41 @@ builder.Services.AddMassTransit(x =>
         });
 
         cfg.UseDelayedRedelivery(r => r.Intervals(
-                    TimeSpan.FromMinutes(1),
-                    TimeSpan.FromMinutes(5),
-                    TimeSpan.FromMinutes(15)
-                ));
+             TimeSpan.FromMinutes(1),
+             TimeSpan.FromMinutes(5),
+             TimeSpan.FromMinutes(15)
+         ));
         cfg.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
 
-        cfg.ReceiveEndpoint("order-confirmed", e =>
-        {
-            e.ConfigureSaga<OrderSagaState>(context);
-            e.UseMessageRetry(r => r.Interval(5, TimeSpan.FromSeconds(1)));
-            e.BindDeadLetterQueue("order-confirmed-dlq", "order-confirmed-dlx", x =>
-            {
-                x.Durable = true;
-            });
-        });
-        cfg.ReceiveEndpoint("compensate-order", e =>
-        {
-            e.ConfigureSaga<OrderSagaState>(context);
-            e.UseMessageRetry(r => r.Interval(5, TimeSpan.FromSeconds(1)));
-            e.BindDeadLetterQueue("compensate-order-dlq", "compensate-order-dlx", x =>
-            {
-                x.Durable = true;
-            });
-        });
+        // Endpoint để phát hành OrderCreated (không cần ConfigureSaga)
         cfg.ReceiveEndpoint("order-created", e =>
         {
-            e.ConfigureSaga<OrderSagaState>(context);
-            e.UseMessageRetry(r => r.Interval(5, TimeSpan.FromSeconds(1)));
-            e.BindDeadLetterQueue("order-created-dlq", "order-created-dlx", x =>
-            {
+            // Không cần ConfigureSaga ở đây vì OrderApi không quản lý Saga
+            // OrdersController sẽ publish OrderCreated
+            e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+            e.BindDeadLetterQueue("order-created-dlq", "order-created-dlx", x => {
                 x.Durable = true;
             });
         });
-        // Giữ lại cấu hình cho consumer
-        cfg.ReceiveEndpoint("order-compensated", e =>
+
+        // Endpoint để nhận CompensateOrder command từ Saga
+        cfg.ReceiveEndpoint("compensate-order", e =>
         {
-            e.ConfigureConsumer<OrderConsumer>(context);
+            e.ConfigureConsumer<OrderConsumer>(context); // Đúng là ConfigureConsumer
             e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-            e.BindDeadLetterQueue("order-compensated-dlq", "order-compensated-dlx",
-                dlq => dlq.Durable = true);
+            e.BindDeadLetterQueue("compensate-order-dlq", "compensate-order-dlx", x => {
+                x.Durable = true;
+            });
         });
 
-        // Thêm endpoint xử lý OrderConfirmed
+        // Endpoint để nhận OrderFulfilled từ Saga
         cfg.ReceiveEndpoint("order-fulfilled", e =>
         {
             e.ConfigureConsumer<OrderFulfilledConsumer>(context);
             e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-            e.BindDeadLetterQueue("order-fulfilled-dlq", "order-fulfilled-dlx",
-                dlq => dlq.Durable = true);
+            e.BindDeadLetterQueue("order-fulfilled-dlq", "order-fulfilled-dlx", x => {
+                x.Durable = true;
+            });
         });
 
         // Endpoint cho DeadLetterConsumer
@@ -144,7 +130,7 @@ builder.Services.AddMassTransit(x =>
         {
             e.ConfigureConsumer<DeadLetterConsumer>(context);
             // Bind các dead letter queues
-            e.Bind("order-compensated-dlq");
+            e.Bind("compensate-order-dlq");
             e.Bind("order-fulfilled-dlq");
         });
     });

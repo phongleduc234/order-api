@@ -2,7 +2,7 @@
 using MassTransit;
 using OrderApi.Services;
 
-namespace OrderApi.Consumer
+namespace OrderApi.Consumers
 {
     // OrderApi/Shared/DeadLetterConsumer.cs
     public class DeadLetterConsumer : IConsumer<object>

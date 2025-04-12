@@ -2,7 +2,7 @@
 using OrderService.Data;
 using SharedContracts.Events;
 
-namespace OrderApi.Consumer
+namespace OrderApi.Consumers
 {
     // OrderConsumer.cs
     public class OrderFulfilledConsumer : IConsumer<OrderFulfilled>
