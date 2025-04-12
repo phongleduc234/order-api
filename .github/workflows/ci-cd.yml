@@ -79,9 +79,25 @@ jobs:
 
       - name: Apply Kubernetes deployment
         run: |
-          ssh ssh.cuder.xyz "helm upgrade --install order-api devops-charts/dotnet-core-api \
-                             --namespace devops --create-namespace \
-                             -f /tmp/order-api-values.yaml \
-                             --set image.repository=${{ secrets.DOCKER_USERNAME }}/order-api \
-                             --set image.tag=${{ needs.build.outputs.image_tag }} \
-                             --set image.pullPolicy=Always"
+          ssh ssh.cuder.xyz "
+            RELEASE=order-api
+            NAMESPACE=devops
+
+            if helm ls -n \$NAMESPACE | grep -q \$RELEASE; then
+              echo 'Uninstalling existing Helm release...'
+              helm uninstall \$RELEASE -n \$NAMESPACE
+
+              echo 'Waiting for old pods to terminate...'
+              while kubectl get pods -n \$NAMESPACE | grep \$RELEASE; do
+                sleep 3
+              done
+            fi
+
+            echo 'Installing Helm chart...'
+            helm upgrade --install \$RELEASE devops-charts/dotnet-core-api \
+              --namespace \$NAMESPACE --create-namespace \
+              -f /tmp/order-api-values.yaml \
+              --set image.repository=${{ secrets.DOCKER_USERNAME }}/order-api \
+              --set image.tag=${{ needs.build.outputs.image_tag }} \
+              --set image.pullPolicy=Always
+          "
