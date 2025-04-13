@@ -1,8 +1,6 @@
-// OrderApi/Services/EmailService.cs
-using Microsoft.Extensions.Configuration;
+﻿// OrderApi/Services/EmailService.cs
 using System.Net;
 using System.Net.Mail;
-using System.Threading.Tasks;
 
 namespace OrderApi.Services
 {
@@ -31,22 +29,33 @@ namespace OrderApi.Services
                 var port = int.Parse(smtpSettings["Port"]);
                 var user = smtpSettings["User"];
                 var password = smtpSettings["Password"];
+                var fromEmail = smtpSettings["FromEmail"];         // ví dụ: no-reply@yourdomain.com
+                var fromName = smtpSettings["FromName"];           // ví dụ: Tên Gửi
+                var senderEmail = smtpSettings["SenderEmail"];     // optional: dùng để set "Sender" riêng
 
                 using var client = new SmtpClient(host, port)
                 {
-                    EnableSsl = true,
+                    EnableSsl = false,
                     Credentials = new NetworkCredential(user, password)
                 };
 
                 using var message = new MailMessage
                 {
-                    From = new MailAddress(user),
+                    // From with display name
+                    From = new MailAddress(fromEmail, fromName),
+
                     Subject = subject,
                     Body = body,
                     IsBodyHtml = isHtml
                 };
 
                 message.To.Add(to);
+
+                // (Optional) Thêm Sender nếu muốn chỉ định rõ người gửi thực sự
+                if (!string.IsNullOrWhiteSpace(senderEmail))
+                {
+                    message.Sender = new MailAddress(senderEmail);
+                }
 
                 await client.SendMailAsync(message);
                 _logger.LogInformation($"Email sent successfully to {to}");

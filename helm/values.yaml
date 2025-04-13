@@ -13,9 +13,6 @@ fullnameOverride: "order-api-service"
 imagePullSecrets:
   - name: regcred
 
-hostNetwork: true
-dnsPolicy: ClusterFirstWithHostNet
-
 service:
   type: ClusterIP
   port: 8080

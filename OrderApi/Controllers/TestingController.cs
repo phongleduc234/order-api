@@ -28,6 +28,8 @@ namespace OrderApi.Controllers
             _context = context;
             _bus = bus;
             _logger = logger;
+            _emailService = emailService;
+            _configuration = configuration;
         }
 
         // 1. Simulate a failed order that needs compensation
