@@ -89,6 +89,18 @@ extraEnvVarsFromConfigMap:
     envVar: SmtpMail__Port
 
   - configMapName: shared-config
+    name: SmtpMail__FromEmail
+    envVar: SmtpMail__FromEmail
+
+  - configMapName: shared-config
+    name: SmtpMail__FromName
+    envVar: SmtpMail__FromName
+
+  - configMapName: shared-config
+    name: SmtpMail__SenderEmail
+    envVar: SmtpMail__SenderEmail
+
+  - configMapName: shared-config
     name: Logging__LogLevel__Default
     envVar: Logging__LogLevel__Default
 

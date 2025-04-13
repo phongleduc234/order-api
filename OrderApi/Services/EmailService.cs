@@ -29,9 +29,9 @@ namespace OrderApi.Services
                 var port = int.Parse(smtpSettings["Port"]);
                 var user = smtpSettings["User"];
                 var password = smtpSettings["Password"];
-                var fromEmail = smtpSettings["FromEmail"];         // ví dụ: no-reply@yourdomain.com
-                var fromName = smtpSettings["FromName"];           // ví dụ: Tên Gửi
-                var senderEmail = smtpSettings["SenderEmail"];     // optional: dùng để set "Sender" riêng
+                var fromEmail = smtpSettings["FromEmail"] ?? "no-reply@cuder.xyz";
+                var fromName = smtpSettings["FromName"] ?? "DevOps";
+                var senderEmail = smtpSettings["SenderEmail"];
 
                 using var client = new SmtpClient(host, port)
                 {
