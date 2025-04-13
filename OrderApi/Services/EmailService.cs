@@ -29,9 +29,9 @@ namespace OrderApi.Services
                 var port = int.Parse(smtpSettings["Port"]);
                 var user = smtpSettings["User"];
                 var password = smtpSettings["Password"];
-                var fromEmail = smtpSettings["FromEmail"] ?? "no-reply@cuder.xyz";
-                var fromName = smtpSettings["FromName"] ?? "DevOps";
-                var senderEmail = smtpSettings["SenderEmail"];
+                //var fromEmail = smtpSettings["FromEmail"] ?? "no-reply@cuder.xyz";
+                //var fromName = smtpSettings["FromName"] ?? "DevOps";
+                //var senderEmail = smtpSettings["SenderEmail"];
 
                 using var client = new SmtpClient(host, port)
                 {
@@ -42,7 +42,7 @@ namespace OrderApi.Services
                 using var message = new MailMessage
                 {
                     // From with display name
-                    From = new MailAddress(fromEmail, fromName),
+                    From = new MailAddress(user, "DevOps"),
 
                     Subject = subject,
                     Body = body,
@@ -52,10 +52,10 @@ namespace OrderApi.Services
                 message.To.Add(to);
 
                 // (Optional) Thêm Sender nếu muốn chỉ định rõ người gửi thực sự
-                if (!string.IsNullOrWhiteSpace(senderEmail))
-                {
-                    message.Sender = new MailAddress(senderEmail);
-                }
+                //if (!string.IsNullOrWhiteSpace(senderEmail))
+                //{
+                //    message.Sender = new MailAddress(senderEmail);
+                //}
 
                 await client.SendMailAsync(message);
                 _logger.LogInformation($"Email sent successfully to {to}");
