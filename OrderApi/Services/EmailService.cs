@@ -27,12 +27,16 @@ namespace OrderApi.Services
                 var smtpSettings = _configuration.GetSection("SmtpMail");
                 var host = smtpSettings["Host"];
                 var port = int.Parse(smtpSettings["Port"]);
-                var user = smtpSettings["User"];
+                var user = smtpSettings["UserName"];
                 var password = smtpSettings["Password"];
+                var fromName = smtpSettings["FromName"] ?? "DevOps";
                 //var fromEmail = smtpSettings["FromEmail"] ?? "no-reply@cuder.xyz";
-                //var fromName = smtpSettings["FromName"] ?? "DevOps";
                 //var senderEmail = smtpSettings["SenderEmail"];
-
+                Console.WriteLine($"Host : {host}");
+                Console.WriteLine($"Port : {port}");
+                Console.WriteLine($"User : {user}");
+                Console.WriteLine($"Password : {password}");
+                Console.WriteLine($"FromName : {fromName}");
                 using var client = new SmtpClient(host, port)
                 {
                     EnableSsl = false,
@@ -42,7 +46,7 @@ namespace OrderApi.Services
                 using var message = new MailMessage
                 {
                     // From with display name
-                    From = new MailAddress(user, "DevOps"),
+                    From = new MailAddress(user, fromName),
 
                     Subject = subject,
                     Body = body,

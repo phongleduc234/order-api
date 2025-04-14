@@ -14,12 +14,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration
     .SetBasePath(AppContext.BaseDirectory)
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: false, reloadOnChange: true)
     .AddEnvironmentVariables();
-
-Console.WriteLine($"Environment: {builder.Environment.EnvironmentName}");
-Console.WriteLine($"BasePath: {AppContext.BaseDirectory}");
-Console.WriteLine($"File exists: {File.Exists(Path.Combine(AppContext.BaseDirectory, "appsettings.json"))}");
 
 // Configure Entity Framework and PostgreSQL
 builder.Services.AddDbContext<OrderDbContext>(options =>
