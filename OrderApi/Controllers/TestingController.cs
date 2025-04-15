@@ -3,7 +3,6 @@ using MassTransit;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using OrderApi.Extensions;
-using OrderApi.Services;
 using OrderService.Data;
 using SharedContracts.Events;
 
@@ -16,19 +15,16 @@ namespace OrderApi.Controllers
         private readonly OrderDbContext _context;
         private readonly IBus _bus;
         private readonly ILogger<TestingController> _logger;
-        private readonly IEmailService _emailService;
         private readonly IConfiguration _configuration;
         public TestingController(
             OrderDbContext context,
             IBus bus,
             ILogger<TestingController> logger,
-            IEmailService emailService,
             IConfiguration configuration)
         {
             _context = context;
             _bus = bus;
             _logger = logger;
-            _emailService = emailService;
             _configuration = configuration;
         }
 
@@ -224,60 +220,5 @@ namespace OrderApi.Controllers
                 return StatusCode(500, new { Error = ex.Message });
             }
         }
-        // Thêm endpoint test mail
-        [HttpPost("test-email")]
-        public async Task<IActionResult> TestEmail([FromBody] EmailTestRequest request)
-        {
-            if (string.IsNullOrEmpty(request?.To))
-            {
-                return BadRequest("Email recipient is required");
-            }
-
-            try
-            {
-                var subject = request.Subject ?? "Test Email from Order API";
-                var body = request.Body ?? $"This is a test email sent from OrderAPI at {DateTime.Now}. SMTP configuration is working correctly.";
-                var isHtml = request.IsHtml ?? false;
-
-                var success = await _emailService.SendEmailAsync(
-                    request.To,
-                    subject,
-                    body,
-                    isHtml);
-
-                if (success)
-                {
-                    return Ok(new
-                    {
-                        Message = "Test email sent successfully",
-                        To = request.To,
-                        Subject = subject,
-                        SmtpSettings = new
-                        {
-                            Host = _configuration.GetValue<string>("SmtpMail:Host"),
-                            Port = _configuration.GetValue<int>("SmtpMail:Port"),
-                            User = _configuration.GetValue<string>("SmtpMail:User")
-                        }
-                    });
-                }
-                else
-                {
-                    return StatusCode(500, new { Error = "Failed to send email. Check logs for details." });
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error sending test email");
-                return StatusCode(500, new { Error = ex.Message });
-            }
-        }
-    }
-
-    public class EmailTestRequest
-    {
-        public string To { get; set; }
-        public string Subject { get; set; }
-        public string Body { get; set; }
-        public bool? IsHtml { get; set; }
     }
 }

@@ -6,6 +6,7 @@ using OrderApi.Consumers;
 using OrderApi.Services;
 using OrderApi.Shared;
 using OrderService.Data;
+using StackExchange.Redis;
 using System.Net.Http.Headers;
 using System.Reflection;
 
@@ -21,6 +22,30 @@ builder.Configuration
 builder.Services.AddDbContext<OrderDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// Add Redis connection
+builder.Services.AddSingleton(sp =>
+{
+    var redisConfig = builder.Configuration.GetSection("Redis");
+    var host = redisConfig["Host"] ?? "localhost";
+    var port = redisConfig["Port"] ?? "6379";
+    var password = redisConfig["Password"] ?? "";
+
+    var configOptions = new ConfigurationOptions
+    {
+        AbortOnConnectFail = false,
+        ConnectRetry = 3,
+        ConnectTimeout = 5000
+    };
+
+    configOptions.EndPoints.Add($"{host}:{port}");
+
+    if (!string.IsNullOrEmpty(password))
+    {
+        configOptions.Password = password;
+    }
+    return ConnectionMultiplexer.Connect(configOptions);
+});
+
 // Register IHttpClientFactory
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient("PaymentService", client =>
@@ -32,7 +57,6 @@ builder.Services.AddHttpClient("PaymentService", client =>
 builder.Services.AddHostedService<OutboxPublisherService>();
 // Đăng ký Alert Service
 builder.Services.AddSingleton<IAlertService, AlertService>();
-builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddHealthChecks().AddCheck<OutboxHealthCheck>("outbox_health");
 
 // Add services to the container.
