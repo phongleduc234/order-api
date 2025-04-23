@@ -33,8 +33,10 @@ builder.Services.AddSingleton(sp =>
     var configOptions = new ConfigurationOptions
     {
         AbortOnConnectFail = false,
-        ConnectRetry = 3,
-        ConnectTimeout = 5000
+        ConnectRetry = 3, // Tăng số lần thử lại khi kết nối thất bại
+        ConnectTimeout = 10000, // Tăng timeout kết nối lên 10 giây
+        SyncTimeout = 10000, // Tăng timeout cho các lệnh đồng bộ lên 10 giây
+        AsyncTimeout = 10000 // Tăng timeout cho các lệnh bất đồng bộ lên 10 giây
     };
 
     configOptions.EndPoints.Add($"{host}:{port}");
