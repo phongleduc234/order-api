@@ -101,8 +101,9 @@ jobs:
             fi
 
             echo 'Installing Helm chart...'
-            helm upgrade --install \$RELEASE devops-charts/dotnet-core-api \
+            helm install \$RELEASE devops-charts/dotnet-core-api \
               --namespace \$NAMESPACE --create-namespace \
+              --replace \
               -f /tmp/order-api-values.yaml \
               --set image.repository=${{ secrets.DOCKER_USERNAME }}/order-api \
               --set image.tag=${{ needs.build.outputs.image_tag }} \
