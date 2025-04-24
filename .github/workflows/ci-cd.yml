@@ -84,6 +84,13 @@ jobs:
             NAMESPACE=devops
 
             if helm ls -n \$NAMESPACE | grep -q \$RELEASE; then
+              echo 'Force deleting stuck pods...'
+              # Tìm và xóa các pod bị stuck ở trạng thái Terminating
+              kubectl get pods -n \$NAMESPACE -o json | jq -r '.items[] | select(.metadata.deletionTimestamp != null) | .metadata.name' | while read pod; do
+                echo Deleting stuck pod: \$pod
+                kubectl delete pod \$pod -n \$NAMESPACE --grace-period=0 --force
+              done
+                
               echo 'Uninstalling existing Helm release...'
               helm uninstall \$RELEASE -n \$NAMESPACE
 
