@@ -112,11 +112,15 @@ builder.Services.AddMassTransit(x =>
             h.Password(password);
         });
 
+        //Cấu hình Global gửi lại thông điệp bị lỗi sau một khoảng thời gian nhất định
+        //•	1 phút (lần thử đầu tiên), •	5 phút(lần thử thứ hai),•	15 phút(lần thử thứ ba).
         cfg.UseDelayedRedelivery(r => r.Intervals(
              TimeSpan.FromMinutes(1),
              TimeSpan.FromMinutes(5),
              TimeSpan.FromMinutes(15)
          ));
+        //Thiết lập cơ chế gửi lại các thông điệp trong MassTransit khi xảy ra lỗi trong quá trình xử lý
+        //với số lần tối đa là 3 lần và khoảng thời gian giữa các lần gửi lại là 5 giây.
         cfg.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
 
         // Endpoint để phát hành OrderCreated (không cần ConfigureSaga)
@@ -125,7 +129,12 @@ builder.Services.AddMassTransit(x =>
             // Không cần ConfigureSaga ở đây vì OrderApi không quản lý Saga
             // OrdersController sẽ publish OrderCreated
             e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-            e.BindDeadLetterQueue("order-created-dlq", "order-created-dlx", x => {
+            //Cấu hình DLQ để lưu trữ các thông điệp không thể xử lý thành công bởi consumer  và có thể được kiểm tra hoặc xử lý lại sau.
+            //•	"order-created-dlq": Tên của Dead Letter Queue.
+            //•	"order-created-dlx": Tên của Dead Letter Exchange(DLX), nơi các thông điệp lỗi sẽ được gửi đến trước khi vào DLQ.
+            //•	x.Durable = true đảm bảo rằng DLQ sẽ được lưu trữ trên đĩa và không bị mất khi RabbitMQ khởi động lại
+            e.BindDeadLetterQueue("order-created-dlq", "order-created-dlx", x =>
+            {
                 x.Durable = true;
             });
         });
@@ -135,7 +144,8 @@ builder.Services.AddMassTransit(x =>
         {
             e.ConfigureConsumer<OrderConsumer>(context); // Đúng là ConfigureConsumer
             e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-            e.BindDeadLetterQueue("compensate-order-dlq", "compensate-order-dlx", x => {
+            e.BindDeadLetterQueue("compensate-order-dlq", "compensate-order-dlx", x =>
+            {
                 x.Durable = true;
             });
         });
@@ -145,7 +155,8 @@ builder.Services.AddMassTransit(x =>
         {
             e.ConfigureConsumer<OrderFulfilledConsumer>(context);
             e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-            e.BindDeadLetterQueue("order-fulfilled-dlq", "order-fulfilled-dlx", x => {
+            e.BindDeadLetterQueue("order-fulfilled-dlq", "order-fulfilled-dlx", x =>
+            {
                 x.Durable = true;
             });
         });

@@ -49,9 +49,8 @@ containerPorts:
   http: 8080
 
 # Môi trường từ Secret
-# Môi trường từ Secret
 extraEnvVarsFromSecret:
-  - secretName: notification-api-secret
+  - secretName: order-api-secret
     name: ConnectionStrings__DefaultConnection
     envVar: ConnectionStrings__DefaultConnection
     
