@@ -16,6 +16,11 @@ service:
   type: ClusterIP
   port: 8080
   targetPort: 8080
+  name: order-api-service 
+
+# Tên deployment tùy chỉnh
+deployment:
+  name: order-api-deployment
 
 # Annotations để force redeploy
 podAnnotations: {}
@@ -23,6 +28,7 @@ podAnnotations: {}
 # Tên ingress tùy chỉnh
 ingress:
   enabled: true
+  name: order-api-ingress
   ingressClassName: nginx
   hostname: order-api.cuder.xyz
   path: /
@@ -36,6 +42,7 @@ ingress:
   extraTls:
     - hosts:
         - order-api.cuder.xyz
+      secretName: order-api-tls
 
 containerPorts:
   http: 8080
