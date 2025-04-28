@@ -121,6 +121,22 @@ extraEnvVarsFromSecret:
     name: Redis__Password
     envVar: Redis__Password
 
+  - secretName: shared-secret
+    name: RabbitMq__Host
+    envVar: RabbitMq__Host
+
+  - secretName: shared-secret
+    name: RabbitMq__Port
+    envVar: RabbitMq__Port
+
+  - secretName: shared-secret
+    name: RabbitMq__UserName
+    envVar: RabbitMq__UserName
+
+  - secretName: shared-secret
+    name: RabbitMq__Password
+    envVar: RabbitMq__Password
+
 # Môi trường từ ConfigMap
 extraEnvVarsFromConfigMap:
   - configMapName: shared-config
