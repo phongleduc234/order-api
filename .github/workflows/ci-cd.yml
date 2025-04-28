@@ -21,14 +21,29 @@ jobs:
         with:
           dotnet-version: 8.0
 
+      - name: Add private NuGet source
+        run: |
+          dotnet nuget add source "${{ secrets.BAGET_URL }}" \
+            --name DevOpsNuGet \
+            --username user \
+            --password "${{ secrets.BAGET_API_KEY }}" \
+            --store-password-in-clear-text
+
+      - name: Clean solution
+        run: dotnet clean
+
+      - name: Restore dependencies
+        run: dotnet restore -v d
+
       - name: Build and test
         run: |
-          dotnet build
-          dotnet test
+          dotnet build --no-restore
+          dotnet test --no-restore
 
       - name: Set image tag
         id: set_tag
-        run: echo "image_tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "image_tag=${GITHUB_SHA}" >> $GITHUB_OUTPUT
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -40,7 +55,10 @@ jobs:
         env:
           RELEASE: order-api
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/$RELEASE:${{ steps.set_tag.outputs.image_tag }} .
+          docker build \
+            --build-arg BAGET_URL=${{ secrets.BAGET_URL }} \
+            --build-arg BAGET_API_KEY=${{ secrets.BAGET_API_KEY }} \
+            -t ${{ secrets.DOCKER_USERNAME }}/$RELEASE:${{ steps.set_tag.outputs.image_tag }} .
           docker push ${{ secrets.DOCKER_USERNAME }}/$RELEASE:${{ steps.set_tag.outputs.image_tag }}
 
   deploy:
@@ -84,6 +102,8 @@ jobs:
       - name: Apply Kubernetes deployment
         run: |
           ssh ssh.cuder.xyz "
+            set -e
+
             RELEASE=order-api
             NAMESPACE=devops
 
@@ -93,7 +113,7 @@ jobs:
                 echo Deleting stuck pod: \$pod
                 kubectl delete pod \$pod -n \$NAMESPACE --grace-period=0 --force
               done
-              
+
               echo 'Uninstalling existing Helm release...'
               helm uninstall \$RELEASE -n \$NAMESPACE
 
