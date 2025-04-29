@@ -1,6 +1,6 @@
 // OrderApi/Extensions/OutboxExtensions.cs
 using Newtonsoft.Json;
-using OrderService.Data;
+using OrderApi.Data;
 
 namespace OrderApi.Extensions
 {

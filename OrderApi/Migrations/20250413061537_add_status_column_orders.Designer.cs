@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using OrderService.Data;
+using OrderApi.Data;
 
 #nullable disable
 
@@ -25,7 +25,7 @@ namespace OrderApi.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("OrderService.Data.Order", b =>
+            modelBuilder.Entity("OrderApi.Data.Order", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -53,7 +53,7 @@ namespace OrderApi.Migrations
                     b.ToTable("Orders", (string)null);
                 });
 
-            modelBuilder.Entity("OrderService.Data.OutboxMessage", b =>
+            modelBuilder.Entity("OrderApi.Data.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

@@ -1,0 +1,60 @@
+.health-checks-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+}
+
+.health-checks-table th,
+.health-checks-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.health-checks-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.health-checks-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+.health-status-healthy {
+    color: #28a745;
+}
+
+.health-status-degraded {
+    color: #ffc107;
+}
+
+.health-status-unhealthy {
+    color: #dc3545;
+}
+
+.health-checks-badge {
+    display: inline-block;
+    padding: 0.25em 0.4em;
+    font-size: 75%;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 0.25rem;
+}
+
+.health-checks-badge-healthy {
+    background-color: #28a745;
+    color: white;
+}
+
+.health-checks-badge-degraded {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.health-checks-badge-unhealthy {
+    background-color: #dc3545;
+    color: white;
+} 

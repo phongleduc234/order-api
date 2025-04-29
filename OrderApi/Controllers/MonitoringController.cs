@@ -1,10 +1,7 @@
 // OrderApi/Controllers/MonitoringController.cs
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using OrderService.Data;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
+using OrderApi.Data;
 
 namespace OrderApi.Controllers
 {

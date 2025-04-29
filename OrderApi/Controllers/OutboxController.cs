@@ -3,7 +3,7 @@ using MassTransit;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
-using OrderService.Data;
+using OrderApi.Data;
 
 [ApiController]
 [Route("[controller]")]

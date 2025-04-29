@@ -1,7 +1,7 @@
 ﻿using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
-using OrderService.Data;
+using OrderApi.Data;
 using StackExchange.Redis;
 using System.Net;
 

@@ -1,13 +1,17 @@
+using HealthChecks.UI.Client;
 using MassTransit;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi.Models;
 using OrderApi.Consumers;
+using OrderApi.Data;
 using OrderApi.Services;
 using OrderApi.Shared;
-using OrderService.Data;
+using OrderApi.Shared.Extensions;
+using OrderApi.Shared.Middleware;
 using StackExchange.Redis;
-using System.Net.Http.Headers;
 using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,10 +37,10 @@ builder.Services.AddSingleton(sp =>
     var configOptions = new ConfigurationOptions
     {
         AbortOnConnectFail = false,
-        ConnectRetry = 3, // Tăng số lần thử lại khi kết nối thất bại
-        ConnectTimeout = 10000, // Tăng timeout kết nối lên 10 giây
-        SyncTimeout = 10000, // Tăng timeout cho các lệnh đồng bộ lên 10 giây
-        AsyncTimeout = 10000 // Tăng timeout cho các lệnh bất đồng bộ lên 10 giây
+        ConnectRetry = 3,
+        ConnectTimeout = 10000,
+        SyncTimeout = 10000,
+        AsyncTimeout = 10000
     };
 
     configOptions.EndPoints.Add($"{host}:{port}");
@@ -53,13 +57,53 @@ builder.Services.AddHttpClient();
 builder.Services.AddHttpClient("PaymentService", client =>
 {
     client.BaseAddress = new Uri("http://payment-api-service:8081");
-    client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+    client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
 });
-// Đăng ký Outbox Background Service
+
+// Register background services
 builder.Services.AddHostedService<OutboxPublisherService>();
-// Đăng ký Alert Service
+builder.Services.AddHostedService<DeadLetterQueueProcessor>();
+
+// Register services
 builder.Services.AddSingleton<IAlertService, AlertService>();
-builder.Services.AddHealthChecks().AddCheck<OutboxHealthCheck>("outbox_health");
+builder.Services.AddScoped<IDeadLetterQueueHandler, DeadLetterQueueHandler>();
+
+// Configure health checks
+builder.Services.AddHealthChecks()
+    .AddCheck<OutboxHealthCheck>("outbox_health")
+    .AddCheck<OrderApi.Services.HealthCheckService>("system_health", tags: new[] { "system" })
+    .AddCheck<OrderDbContextHealthCheck>("database_health", tags: new[] { "database" })
+    .AddNpgSql(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        name: "postgresql",
+        tags: new[] { "database" },
+        timeout: TimeSpan.FromSeconds(30))
+    .AddRedis(
+        builder.Configuration.GetConnectionString("Redis"),
+        name: "redis",
+        tags: new[] { "cache" },
+        timeout: TimeSpan.FromSeconds(30))
+    .AddRabbitMQ(
+        rabbitConnectionString: $"amqp://{builder.Configuration["RabbitMq:UserName"]}:{builder.Configuration["RabbitMq:Password"]}@{builder.Configuration["RabbitMq:Host"]}:{builder.Configuration["RabbitMq:Port"]}",
+        name: "rabbitmq",
+        tags: new[] { "message-broker" },
+        timeout: TimeSpan.FromSeconds(30));
+
+// Configure resilience policies
+builder.Services.AddResiliencePolicies(builder.Configuration);
+
+// Configure health check settings
+builder.Services.AddHealthCheckConfig(builder.Configuration);
+
+// Add HealthChecks UI
+builder.Services.AddHealthChecksUI(setup =>
+{
+    setup.SetEvaluationTimeInSeconds(60);
+    setup.MaximumHistoryEntriesPerEndpoint(50);
+    setup.SetApiMaxActiveRequests(3);
+    setup.AddHealthCheckEndpoint("Order API", "/health");
+})
+.AddInMemoryStorage();
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -95,7 +139,6 @@ builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<OrderConsumer>();
     x.AddConsumer<DeadLetterConsumer>();
-    // Thêm consumer cho các event từ Saga nếu cần
     x.AddConsumer<OrderFulfilledConsumer>();
 
     x.UsingRabbitMq((context, cfg) =>
@@ -112,60 +155,48 @@ builder.Services.AddMassTransit(x =>
             h.Password(password);
         });
 
-        //Cấu hình Global gửi lại thông điệp bị lỗi sau một khoảng thời gian nhất định
-        //•	1 phút (lần thử đầu tiên), •	5 phút(lần thử thứ hai),•	15 phút(lần thử thứ ba).
-        cfg.UseDelayedRedelivery(r => r.Intervals(
-             TimeSpan.FromMinutes(1),
-             TimeSpan.FromMinutes(5),
-             TimeSpan.FromMinutes(15)
-         ));
-        //Thiết lập cơ chế gửi lại các thông điệp trong MassTransit khi xảy ra lỗi trong quá trình xử lý
-        //với số lần tối đa là 3 lần và khoảng thời gian giữa các lần gửi lại là 5 giây.
-        cfg.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+        // Configure retry policy at bus level
+        var retryConfig = builder.Configuration.GetSection("Resilience:Retry");
+        cfg.UseMessageRetry(r => r.Interval(
+            retryConfig.GetValue<int>("Count", 3),
+            TimeSpan.FromSeconds(retryConfig.GetValue<int>("BaseDelay", 2))
+        ));
 
-        // Endpoint để phát hành OrderCreated (không cần ConfigureSaga)
+        // Configure endpoints with DLQ
         cfg.ReceiveEndpoint("order-created", e =>
         {
-            // Không cần ConfigureSaga ở đây vì OrderApi không quản lý Saga
-            // OrdersController sẽ publish OrderCreated
-            e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-            //Cấu hình DLQ để lưu trữ các thông điệp không thể xử lý thành công bởi consumer  và có thể được kiểm tra hoặc xử lý lại sau.
-            //•	"order-created-dlq": Tên của Dead Letter Queue.
-            //•	"order-created-dlx": Tên của Dead Letter Exchange(DLX), nơi các thông điệp lỗi sẽ được gửi đến trước khi vào DLQ.
-            //•	x.Durable = true đảm bảo rằng DLQ sẽ được lưu trữ trên đĩa và không bị mất khi RabbitMQ khởi động lại
-            e.BindDeadLetterQueue("order-created-dlq", "order-created-dlx", x =>
+            e.ConfigureConsumer<OrderConsumer>(context);
+            e.BindDeadLetterQueue("order-created-dlq", "order-created-dlx", x => x.Durable = true);
+            
+            // Configure circuit breaker for this endpoint
+            var circuitBreakerConfig = builder.Configuration.GetSection("Resilience:CircuitBreaker");
+            e.UseCircuitBreaker(cb =>
             {
-                x.Durable = true;
+                cb.TrackingPeriod = TimeSpan.FromMinutes(1);
+                cb.TripThreshold = circuitBreakerConfig.GetValue<int>("FailureThreshold", 3);
+                cb.ActiveThreshold = circuitBreakerConfig.GetValue<int>("MinimumThroughput", 5);
+                cb.ResetInterval = TimeSpan.FromSeconds(circuitBreakerConfig.GetValue<int>("DurationOfBreak", 30));
             });
         });
 
-        // Endpoint để nhận CompensateOrder command từ Saga
+        // Configure compensate-order endpoint
         cfg.ReceiveEndpoint("compensate-order", e =>
         {
-            e.ConfigureConsumer<OrderConsumer>(context); // Đúng là ConfigureConsumer
-            e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-            e.BindDeadLetterQueue("compensate-order-dlq", "compensate-order-dlx", x =>
-            {
-                x.Durable = true;
-            });
+            e.ConfigureConsumer<OrderConsumer>(context);
+            e.BindDeadLetterQueue("compensate-order-dlq", "compensate-order-dlx", x => x.Durable = true);
         });
 
-        // Endpoint để nhận OrderFulfilled từ Saga
+        // Configure order-fulfilled endpoint
         cfg.ReceiveEndpoint("order-fulfilled", e =>
         {
             e.ConfigureConsumer<OrderFulfilledConsumer>(context);
-            e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-            e.BindDeadLetterQueue("order-fulfilled-dlq", "order-fulfilled-dlx", x =>
-            {
-                x.Durable = true;
-            });
+            e.BindDeadLetterQueue("order-fulfilled-dlq", "order-fulfilled-dlx", x => x.Durable = true);
         });
 
-        // Endpoint cho DeadLetterConsumer
+        // Configure dead letter queue endpoint
         cfg.ReceiveEndpoint("order-dead-letter-queue", e =>
         {
             e.ConfigureConsumer<DeadLetterConsumer>(context);
-            // Bind các dead letter queues
             e.Bind("compensate-order-dlq");
             e.Bind("order-fulfilled-dlq");
         });
@@ -181,6 +212,19 @@ using (var scope = app.Services.CreateScope())
     dbContext.Database.Migrate();
 }
 
+// Configure middleware pipeline
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
+// Add global exception handling
+app.UseMiddleware<GlobalExceptionHandler>();
+
+// Add validation middleware
+app.UseMiddleware<ValidationMiddleware>();
+
+// Configure Swagger
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -188,16 +232,29 @@ app.UseSwaggerUI(c =>
     c.RoutePrefix = "swagger";
 });
 
-app.UseForwardedHeaders(new ForwardedHeadersOptions
+// Configure health checks
+app.MapHealthChecks("/health", new HealthCheckOptions
 {
-    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse,
+    AllowCachingResponses = false,
+    ResultStatusCodes =
+    {
+        [HealthStatus.Healthy] = StatusCodes.Status200OK,
+        [HealthStatus.Degraded] = StatusCodes.Status200OK,
+        [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable
+    }
 });
 
-app.MapHealthChecks("/health");
+// Configure health check UI
+app.MapHealthChecksUI(options =>
+{
+    options.UIPath = "/health-ui";
+    options.ApiPath = "/health-api";
+    options.AddCustomStylesheet("wwwroot/css/health-checks.css");
+});
+
 app.UseRouting();
-
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();

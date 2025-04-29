@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using MassTransit;
-using OrderService.Data;
+using OrderApi.Data;
 using OrderApi.Extensions;
 using SharedContracts.Events;
 
@@ -41,7 +41,14 @@ public class OrdersController : ControllerBase
             await _context.SaveChangesAsync();
 
             // Chỉ publish event, không xử lý payment trực tiếp (Saga sẽ điều phối)
-            var orderCreatedEvent = new OrderCreated(Guid.NewGuid(), order.Id);
+            var orderCreatedEvent = new OrderCreated(
+                Guid.NewGuid(),
+                order.Id,
+                order.Amount,
+                new List<OrderItem>
+                {
+                    new() { ProductId = order.ProductId, Quantity = order.Quantity }
+                });
 
             // Lưu event vào Outbox
             await _context.SaveEventToOutboxAsync(orderCreatedEvent);

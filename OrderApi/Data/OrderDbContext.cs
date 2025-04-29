@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using OrderApi.Models;
 
-namespace OrderService.Data
+namespace OrderApi.Data
 {
     public class OrderDbContext : DbContext
     {
@@ -11,6 +12,7 @@ namespace OrderService.Data
         // Define your DbSets here
         public DbSet<Order> Orders { get; set; }
         public DbSet<OutboxMessage> OutboxMessages { get; set; }
+        public DbSet<DeadLetterMessage> DeadLetterMessages { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -22,6 +24,12 @@ namespace OrderService.Data
 
             modelBuilder.Entity<Order>().ToTable("Orders");
             modelBuilder.Entity<OutboxMessage>().ToTable("OutboxMessages");
+
+            modelBuilder.Entity<Order>()
+                .HasKey(o => o.Id);
+
+            modelBuilder.Entity<DeadLetterMessage>()
+                .HasKey(d => d.Id);
         }
     }
 

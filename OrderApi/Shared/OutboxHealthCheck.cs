@@ -1,7 +1,7 @@
 // OrderApi/Health/OutboxHealthCheck.cs
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
-using OrderService.Data;
+using OrderApi.Data;
 
 namespace OrderApi.Shared
 {

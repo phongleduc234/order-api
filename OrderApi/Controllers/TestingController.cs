@@ -1,9 +1,9 @@
 // OrderApi/Controllers/TestingController.cs
 using MassTransit;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
+using System.Text.Json;
+using OrderApi.Data;
 using OrderApi.Extensions;
-using OrderService.Data;
 using SharedContracts.Events;
 
 namespace OrderApi.Controllers
@@ -16,6 +16,7 @@ namespace OrderApi.Controllers
         private readonly IBus _bus;
         private readonly ILogger<TestingController> _logger;
         private readonly IConfiguration _configuration;
+
         public TestingController(
             OrderDbContext context,
             IBus bus,
@@ -153,13 +154,18 @@ namespace OrderApi.Controllers
                     _context.Orders.Add(order);
 
                     // Create order events in outbox
-                    var orderCreatedEvent = new OrderCreated(Guid.NewGuid(), orderId);
+                    var orderCreatedEvent = new OrderCreated(
+                        Guid.NewGuid(),
+                        orderId,
+                        order.Amount,
+                        new List<OrderItem> { new() { ProductId = order.ProductId, Quantity = order.Quantity } }
+                    );
 
                     var outboxMessage = new OutboxMessage
                     {
                         Id = Guid.NewGuid(),
                         EventType = typeof(OrderCreated).AssemblyQualifiedName,
-                        EventData = JsonConvert.SerializeObject(orderCreatedEvent),
+                        EventData = JsonSerializer.Serialize(orderCreatedEvent),
                         CreatedAt = DateTime.UtcNow,
                         Processed = false,
                         RetryCount = 0
@@ -192,13 +198,18 @@ namespace OrderApi.Controllers
             {
                 // Create an outbox message with high retry count
                 var orderId = Guid.NewGuid();
-                var orderCreatedEvent = new OrderCreated(Guid.NewGuid(), orderId);
+                var orderCreatedEvent = new OrderCreated(
+                    Guid.NewGuid(),
+                    orderId,
+                    10000,
+                    new List<OrderItem> { new() { ProductId = "123456", Quantity = 10 } }
+                );
 
                 var outboxMessage = new OutboxMessage
                 {
                     Id = Guid.NewGuid(),
                     EventType = typeof(OrderCreated).AssemblyQualifiedName,
-                    EventData = JsonConvert.SerializeObject(orderCreatedEvent),
+                    EventData = JsonSerializer.Serialize(orderCreatedEvent),
                     CreatedAt = DateTime.UtcNow.AddHours(-2), // Backdate by 2 hours
                     Processed = false,
                     RetryCount = 4  // Just below the max retry threshold
