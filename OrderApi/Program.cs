@@ -1,10 +1,8 @@
-using HealthChecks.UI.Client;
 using MassTransit;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.OpenApi.Models;
 using OrderApi.Consumers;
 using OrderApi.Data;
 using OrderApi.Services;
@@ -12,7 +10,6 @@ using OrderApi.Shared;
 using OrderApi.Shared.Extensions;
 using OrderApi.Shared.Middleware;
 using StackExchange.Redis;
-using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -95,45 +92,6 @@ builder.Services.AddResiliencePolicies(builder.Configuration);
 // Configure health check settings
 builder.Services.AddHealthCheckConfig(builder.Configuration);
 
-// Add HealthChecks UI
-builder.Services.AddHealthChecksUI(setup =>
-{
-    setup.SetEvaluationTimeInSeconds(60);
-    setup.MaximumHistoryEntriesPerEndpoint(50);
-    setup.SetApiMaxActiveRequests(3);
-    setup.AddHealthCheckEndpoint("Order API", "/health");
-})
-.AddInMemoryStorage();
-
-// Add services to the container.
-builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
-{
-    options.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Title = "Order API",
-        Version = "v1",
-        Description = "API for order management with Outbox Pattern and DLQ support",
-        Contact = new OpenApiContact
-        {
-            Name = "Development Team",
-            Email = "jun8124@gmail.com"
-        }
-    });
-
-    // Add XML comments support
-    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    if (File.Exists(xmlPath))
-    {
-        options.IncludeXmlComments(xmlPath);
-    }
-
-    // Group endpoints by controller
-    options.TagActionsBy(api => new[] { api.GroupName ?? api.ActionDescriptor.RouteValues["controller"] });
-});
 // Trong Program.cs, sửa đổi cấu hình MassTransit
 builder.Services.AddMassTransit(x =>
 {
@@ -233,25 +191,7 @@ app.UseSwaggerUI(c =>
 });
 
 // Configure health checks
-app.MapHealthChecks("/health", new HealthCheckOptions
-{
-    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse,
-    AllowCachingResponses = false,
-    ResultStatusCodes =
-    {
-        [HealthStatus.Healthy] = StatusCodes.Status200OK,
-        [HealthStatus.Degraded] = StatusCodes.Status200OK,
-        [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable
-    }
-});
-
-// Configure health check UI
-app.MapHealthChecksUI(options =>
-{
-    options.UIPath = "/health-ui";
-    options.ApiPath = "/health-api";
-    options.AddCustomStylesheet("wwwroot/css/health-checks.css");
-});
+app.MapHealthChecks("/health");
 
 app.UseRouting();
 app.UseAuthorization();
