@@ -67,10 +67,13 @@ builder.Services.AddScoped<IDeadLetterQueueHandler, DeadLetterQueueHandler>();
 builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
 
+// Add controllers
+builder.Services.AddControllers();
+
 // Configure health checks
 builder.Services.AddHealthChecks()
     .AddCheck<OutboxHealthCheck>("outbox_health")
-    .AddCheck<OrderApi.Services.HealthCheckService>("system_health", tags: new[] { "system" })
+    .AddCheck<HealthCheckService>("system_health", tags: new[] { "system" })
     .AddCheck<OrderDbContextHealthCheck>("database_health", tags: new[] { "database" })
     .AddNpgSql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
