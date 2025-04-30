@@ -1,8 +1,6 @@
 using MassTransit;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
 using OrderApi.Consumers;
 using OrderApi.Data;
 using OrderApi.Services;
@@ -64,6 +62,10 @@ builder.Services.AddHostedService<DeadLetterQueueProcessor>();
 // Register services
 builder.Services.AddSingleton<IAlertService, AlertService>();
 builder.Services.AddScoped<IDeadLetterQueueHandler, DeadLetterQueueHandler>();
+
+// Add authentication and authorization
+builder.Services.AddAuthentication();
+builder.Services.AddAuthorization();
 
 // Configure health checks
 builder.Services.AddHealthChecks()
@@ -194,6 +196,7 @@ app.UseSwaggerUI(c =>
 app.MapHealthChecks("/health");
 
 app.UseRouting();
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
