@@ -1,6 +1,7 @@
 using MassTransit;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 using OrderApi.Consumers;
 using OrderApi.Data;
 using OrderApi.Services;
@@ -8,6 +9,7 @@ using OrderApi.Shared;
 using OrderApi.Shared.Extensions;
 using OrderApi.Shared.Middleware;
 using StackExchange.Redis;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -67,8 +69,34 @@ builder.Services.AddScoped<IDeadLetterQueueHandler, DeadLetterQueueHandler>();
 builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
 
-// Add controllers
+// Register ASP.NET Core services
 builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Payment API",
+        Version = "v1",
+        Description = "API for payment management with Outbox Pattern and DLQ support",
+        Contact = new OpenApiContact
+        {
+            Name = "Development Team",
+            Email = "jun8124@gmail.com"
+        }
+    });
+
+    // Add XML comments support
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+    {
+        options.IncludeXmlComments(xmlPath);
+    }
+
+    // Group endpoints by controller
+    options.TagActionsBy(api => new[] { api.GroupName ?? api.ActionDescriptor.RouteValues["controller"] });
+});
 
 // Configure health checks
 builder.Services.AddHealthChecks()
